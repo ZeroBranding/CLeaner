@@ -56,4 +56,17 @@ export default defineConfig({
       'three',
     ],
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './vitest.setup.ts',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      lines: 90,
+      statements: 90,
+      functions: 90,
+      branches: 80,
+    },
+  },
 });
