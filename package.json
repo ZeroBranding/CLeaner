@@ -26,28 +26,30 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
+    "@react-three/drei": "^9.89.0",
+    "@react-three/fiber": "^8.15.11",
+    "@react-three/postprocessing": "^2.16.1",
     "@tanstack/react-query": "^5.12.0",
     "axios": "^1.6.2",
-    "socket.io-client": "^4.5.4",
-    "framer-motion": "^10.16.5",
-    "recharts": "^2.10.1",
-    "three": "^0.159.0",
-    "@react-three/fiber": "^8.15.11",
-    "@react-three/drei": "^9.89.0",
-    "lucide-react": "^0.294.0",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^2.1.0",
     "date-fns": "^2.30.0",
+    "framer-motion": "^10.16.5",
+    "lucide-react": "^0.294.0",
+    "postprocessing": "^6.36.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.10.1",
+    "socket.io-client": "^4.5.4",
+    "tailwind-merge": "^2.1.0",
+    "three": "^0.159.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@types/node": "^20.10.4",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "@types/node": "^20.10.4",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -96,11 +98,16 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "msi",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.ico",
@@ -120,11 +127,17 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "pkg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "assets/icon.icns",
@@ -153,15 +166,21 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "rpm",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "assets/icon.png",

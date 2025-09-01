@@ -2,6 +2,8 @@ import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { AdaptiveDpr, OrbitControls } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { useHologramStore } from '@/store/hologramStore';
 
 type HologramScannerProps = {
   className?: string;
@@ -192,6 +194,86 @@ function Particles({ count = 1500 }: { count?: number }) {
   );
 }
 
+function BurstParticles({ capacity = 1000 }: { capacity?: number }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const consumeBurst = useHologramStore((s) => s.consumeBurst);
+
+  const positions = useMemo(() => new Float32Array(capacity * 3), [capacity]);
+  const velocities = useMemo(() => new Float32Array(capacity * 3), [capacity]);
+  const life = useMemo(() => new Float32Array(capacity), [capacity]);
+
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return g;
+  }, [positions]);
+
+  const spawnBurst = (count: number) => {
+    let spawned = 0;
+    for (let i = 0; i < capacity && spawned < count; i++) {
+      if (life[i] > 0) continue;
+      const i3 = i * 3;
+      // Start nahe Zentrum (innerhalb des Würfels)
+      positions[i3 + 0] = (Math.random() - 0.5) * 0.4;
+      positions[i3 + 1] = (Math.random() - 0.5) * 0.4;
+      positions[i3 + 2] = (Math.random() - 0.5) * 0.4;
+      // Richtung nach außen
+      const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.2, Math.random() - 0.5).normalize();
+      const speed = 0.8 + Math.random() * 1.8;
+      velocities[i3 + 0] = dir.x * speed;
+      velocities[i3 + 1] = Math.abs(dir.y) * speed * 1.2; // leicht nach oben
+      velocities[i3 + 2] = dir.z * speed;
+      life[i] = 1.2 + Math.random() * 0.8; // Sekunden
+      spawned++;
+    }
+    const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
+    posAttr.needsUpdate = true;
+  };
+
+  useFrame((_, delta) => {
+    // Konsumiere Burst-Trigger
+    const toSpawn = consumeBurst();
+    if (toSpawn) spawnBurst(toSpawn);
+
+    const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < capacity; i++) {
+      const i3 = i * 3;
+      if (life[i] > 0) {
+        // Update
+        positions[i3 + 0] += velocities[i3 + 0] * delta;
+        positions[i3 + 1] += velocities[i3 + 1] * delta;
+        positions[i3 + 2] += velocities[i3 + 2] * delta;
+        // Dämpfung
+        velocities[i3 + 0] *= 0.98;
+        velocities[i3 + 1] = velocities[i3 + 1] * 0.98 - 0.3 * delta; // leichte Schwerkraft
+        velocities[i3 + 2] *= 0.98;
+        life[i] -= delta;
+        if (life[i] <= 0) {
+          // Verstecken
+          positions[i3 + 0] = 9999;
+          positions[i3 + 1] = 9999;
+          positions[i3 + 2] = 9999;
+        }
+      }
+    }
+    posAttr.needsUpdate = true;
+  });
+
+  return (
+    <points ref={pointsRef} geometry={geometry}>
+      <pointsMaterial
+        color={'#00E5FF'}
+        size={0.06}
+        sizeAttenuation
+        depthWrite={false}
+        transparent
+        opacity={0.9}
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  );
+}
+
 function Scene({ particleCount }: { particleCount?: number }) {
   return (
     <>
@@ -199,6 +281,7 @@ function Scene({ particleCount }: { particleCount?: number }) {
       <pointLight position={[5, 5, 5]} intensity={0.6} />
       <HologramCube />
       <Particles count={particleCount} />
+      <BurstParticles capacity={1200} />
       <OrbitControls enablePan={false} enableDamping dampingFactor={0.08} />
     </>
   );
@@ -217,6 +300,14 @@ const HologramScanner: React.FC<HologramScannerProps> = ({ className, style, par
         <Scene particleCount={particleCount} />
         {/* Adaptive DPR für stabile 60 FPS */}
         <AdaptiveDpr pixelated />
+        {/* Stärkerer Glow via Bloom */}
+        <EffectComposer multisampling={0}>
+          <Bloom
+            luminanceThreshold={0.2}
+            luminanceSmoothing={0.9}
+            intensity={1.1}
+          />
+        </EffectComposer>
       </Canvas>
     </div>
   );
