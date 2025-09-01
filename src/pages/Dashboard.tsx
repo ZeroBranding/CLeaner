@@ -17,7 +17,7 @@ import SystemChart from '@components/dashboard/SystemChart';
 import QuickActions from '@components/dashboard/QuickActions';
 import RecentScans from '@components/dashboard/RecentScans';
 import SystemHealth from '@components/dashboard/SystemHealth';
-import AnimatedBackground from '@components/3d/AnimatedBackground';
+import HologramScanner from '@components/3d/HologramScanner';
 
 // Hooks & API
 import { useSystemInfo } from '@hooks/useSystemInfo';
@@ -48,8 +48,10 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="relative min-h-screen">
-      {/* 3D Animated Background */}
-      <AnimatedBackground />
+      {/* 3D Hologram Scanner */}
+      <div className="absolute inset-0 z-0">
+        <HologramScanner />
+      </div>
       
       <div className="relative z-10 p-6">
         {/* Header */}
