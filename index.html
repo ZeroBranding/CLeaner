@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/assets/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KI-gestützte System-Reinigungs-Anwendung mit 3D-Interface" />
+    <title>GermanCodeZero Cleaner</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-dark-bg-primary text-dark-text-primary overflow-hidden">
+    <div id="root"></div>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-dark-bg-primary">
+      <div class="text-center">
+        <div class="relative w-32 h-32 mx-auto mb-8">
+          <div class="absolute inset-0 rounded-full border-4 border-primary-500/20"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-primary-500 border-t-transparent animate-spin"></div>
+          <div class="absolute inset-2 rounded-full border-4 border-secondary-500 border-b-transparent animate-spin animate-reverse"></div>
+        </div>
+        <h1 class="text-2xl font-bold text-white mb-2">GermanCodeZero Cleaner</h1>
+        <p class="text-gray-400">System wird initialisiert...</p>
+      </div>
+    </div>
+    
+    <script>
+      // Remove loading screen when app is ready
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const loadingScreen = document.getElementById('loading-screen');
+          if (loadingScreen) {
+            loadingScreen.style.transition = 'opacity 0.5s';
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => loadingScreen.remove(), 500);
+          }
+        }, 1000);
+      });
+    </script>
+    
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
