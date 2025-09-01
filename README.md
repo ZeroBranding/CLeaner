@@ -1,62 +1,90 @@
-# Cleaner – Systemreiniger der nächsten Generation
+# Cleaner Pro – Systemreiniger der nächsten Generation
 
-Cleaner ist ein plattformübergreifendes Open-Source-Werkzeug, das ähnlich wie „CCleaner“ überflüssige Dateien findet und entfernt, Treiberprobleme erkennt und mithilfe lokaler Sprachmodelle intelligente Empfehlungen ausspricht.
+**Cleaner Pro** ist ein intelligenter, plattformübergreifender Systemreiniger, der mit einer modernen React/Electron-Oberfläche und einem leistungsstarken Python-Kern ausgestattet ist. Die Anwendung findet und entfernt nicht nur überflüssige Dateien, sondern identifiziert auch Treiberprobleme und gibt mithilfe von integrierten Sprachmodellen intelligente Empfehlungen zur Systemoptimierung.
+
+## Technologie-Stack
+
+*   **Frontend:** React, TypeScript, Vite, Tailwind CSS
+*   **Desktop App:** Electron
+*   **Backend & Core-Logik:** Python
+*   **KI-Integration:** Lokale LLMs (über Ollama und Transformers)
 
 ## Haupt-Features
 
-1. Hardware-spezifische Datenmüll-Bereinigung
-   * CPU- und GPU-Cache-Dateien
-   * RAM-Auslagerungs-/Hibernation-Dateien
-   * Temporäre SSD- und Festplatten-Artefakte (Log- und Cache-Verzeichnisse)
-   * Mainboard-bezogene Firmware-Logs
-   * Netzteil-(PSU)-Diagnose-Berichte (sofern vorhanden)
-2. Treiber-Identifizierung & Update-Empfehlungen
-3. Schnelle Übersichtssysteme: Temperatur, Auslastung, Lebensdauer-Statistiken
-4. Integrierte lokalen LLMs für Kontexterkennung & Benutzerinteraktion
-   * Deutsches 8B-Modell über Ollama
-   * GPT-OSS-20B für erweiterte Analysen
-5. Erweiterbare Plugin-Architektur – implementiere eigene Module im Verzeichnis `cleaner/hardware` oder `cleaner/plugins`.
+1.  **Hardware-spezifische Datenmüll-Bereinigung:**
+    *   CPU- und GPU-Cache-Dateien
+    *   RAM-Auslagerungs-/Hibernation-Dateien
+    *   Temporäre SSD- und Festplatten-Artefakte (Log- und Cache-Verzeichnisse)
+    *   Mainboard-bezogene Firmware-Logs
+2.  **Treiber-Identifizierung & Update-Empfehlungen**
+3.  **System-Übersicht in Echtzeit:** Temperatur, Auslastung und Lebensdauer-Statistiken
+4.  **Integrierte lokale LLMs** für kontextbezogene Analysen und Benutzerinteraktion
+5.  **Erweiterbare Plugin-Architektur:** Eigene Module können einfach im Verzeichnis `cleaner/hardware` hinzugefügt werden.
 
-## Installation
+## Installation & Einrichtung
+
+Für die Entwicklungsumgebung werden sowohl Python als auch Node.js benötigt.
+
+### 1. Backend (Python)
 
 ```bash
-# Python-Umgebung anlegen (empfohlen)
+# 1. Python-Umgebung anlegen (empfohlen)
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Windows: venv\\Scripts\\activate
+# Linux/macOS: source venv/bin/activate
 
-# Abhängigkeiten installieren
+# 2. Abhängigkeiten installieren
 pip install -r requirements.txt
 ```
 
-LLM-Modelle:
-1. [Ollama](https://ollama.ai) installieren und das deutsche 8B-Modell herunterladen:
-   ```bash
-   ollama pull deutsch-8b
-   ```
-2. GPT-OSS-20B installieren (ggf. über HuggingFace) und Pfad in der Umgebungsvariable `GPT_OSS_MODEL_PATH` setzen.
-
-## Verwendung
+### 2. Frontend (Node.js & Electron)
 
 ```bash
-python -m cleaner.clean
-# oder
-python main.py clean
+# 1. Node.js Abhängigkeiten installieren
+npm install
+
+# 2. Anwendung im Entwicklungsmodus starten
+npm run dev
 ```
 
-Beispiele:
-* Komplettreinigung mit Standard-Profil
-  ```bash
-  cleaner clean
-  ```
-* Nur Treiberanalyse
-  ```bash
-  cleaner drivers scan
-  ```
+### 3. KI-Modelle (Optional)
+
+1.  [Ollama](https://ollama.ai) installieren und das gewünschte Modell herunterladen:
+    ```bash
+    ollama pull llama3 # Beispiel
+    ```
+2.  Für andere Modelle (z.B. über HuggingFace), den Pfad in der entsprechenden Konfigurationsdatei oder Umgebungsvariable setzen.
+
+## Verfügbare Skripte
+
+Die folgenden Skripte sind in der `package.json` definiert und können mit `npm run <script-name>` ausgeführt werden:
+
+| Skript             | Beschreibung                                                                  |
+| ------------------ | ----------------------------------------------------------------------------- |
+| `dev`              | Startet die Electron-Anwendung im Entwicklungsmodus mit Hot-Reloading.          |
+| `build`            | Baut das Frontend und den Main-Prozess für die Produktion.                    |
+| `lint`             | Überprüft den TypeScript/JavaScript-Code auf Stil- und Syntaxfehler.          |
+| `test`             | Führt die Tests mit Vitest aus.                                               |
+| `format`           | Formatiert den gesamten Code mit Prettier.                                    |
+| `electron:dev`     | Startet nur den Electron-Wrapper im Entwicklungsmodus.                        |
+
+## Verwendung der CLI (Python-Kern)
+
+Die Kernfunktionalität kann auch direkt über die Kommandozeile genutzt werden.
+
+```bash
+# Beispiel: Komplette Reinigung mit Standard-Profil
+python main.py clean
+
+# Beispiel: Nur Treiberanalyse durchführen
+python main.py drivers scan
+```
 
 ## Roadmap
-* Automatische Zeitpläne
-* GUI auf Basis von Electron oder Qt
-* Cloud-Sync der Reinigungsprofile (optional)
+
+*   Automatische Reinigungs-Zeitpläne
+*   Cloud-Synchronisierung von Reinigungsprofilen (optional)
+*   Erweiterte System-Tweaking-Optionen
 
 ## Lizenz
 
