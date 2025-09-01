@@ -1,0 +1,9 @@
+click>=8.1
+psutil>=5.9
+wmi; sys_platform == 'win32'
+py-cpuinfo>=9.0
+rich>=13.7
+# AI
+torch>=2.0; platform_machine != 'arm64'
+transformers>=4.40
+requests>=2.31

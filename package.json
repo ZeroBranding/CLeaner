@@ -1,0 +1,172 @@
+{
+  "name": "systemcleaner-pro",
+  "version": "1.0.0",
+  "description": "Intelligenter System-Cleaner mit KI-Chat-Unterstützung für optimale Performance",
+  "main": "dist/main.js",
+  "homepage": "https://github.com/your-username/systemcleaner-pro",
+  "author": {
+    "name": "SystemCleaner Team",
+    "email": "support@systemcleaner.pro"
+  },
+  "license": "MIT",
+  "keywords": [
+    "system-cleaner",
+    "cache-cleaner",
+    "driver-updater",
+    "performance-optimizer",
+    "ai-chat",
+    "system-maintenance",
+    "gpu-cache",
+    "cpu-cache",
+    "ssd-cache",
+    "ram-optimizer"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "vite",
+    "dev:main": "tsc -p tsconfig.main.json && electron .",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "preview": "vite preview",
+    "electron": "electron .",
+    "electron:dev": "electron . --dev",
+    "analyze": "node scripts/analyze.js",
+    "cleanup": "node scripts/cleanup.js",
+    "drivers": "node scripts/drivers.js",
+    "chat": "node scripts/chat.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "prepare": "husky install",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "buffer": "^6.0.3",
+    "chalk": "^4.1.2",
+    "child_process": "^1.0.2",
+    "commander": "^11.0.0",
+    "crypto": "^1.0.1",
+    "electron": "^25.0.0",
+    "electron-store": "^8.1.0",
+    "events": "^3.3.0",
+    "fs-extra": "^11.1.1",
+    "http": "^0.0.1-security",
+    "https": "^1.0.0",
+    "inquirer": "^9.2.5",
+    "node-cron": "^3.0.2",
+    "node-pty": "^1.0.0",
+    "openai": "^4.0.0",
+    "ora": "^7.0.1",
+    "os": "^0.1.2",
+    "path": "^0.12.7",
+    "process": "^0.11.10",
+    "progress": "^2.0.3",
+    "querystring": "^0.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "stream": "^0.0.2",
+    "systeminformation": "^5.21.0",
+    "table": "^6.8.1",
+    "url": "^0.11.3",
+    "util": "^0.12.5",
+    "ws": "^8.13.0",
+    "zlib": "^1.0.5"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/fs-extra": "^11.0.1",
+    "@types/node": "^20.4.5",
+    "@types/node-cron": "^3.0.7",
+    "@types/progress": "^2.0.5",
+    "@types/react": "^18.3.24",
+    "@types/react-dom": "^18.2.7",
+    "@types/ws": "^8.5.5",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.2.0",
+    "electron-builder": "^24.6.3",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+<<<<<<< Current (Your changes)
+    "husky": "^8.0.3",
+    "jest": "^29.6.1",
+    "lint-staged": "^13.2.3",
+    "postcss": "^8.4.27",
+    "prettier": "^3.0.0",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.1.6",
+    "vite": "^4.4.5",
+    "vite-plugin-electron": "^0.11.2",
+    "vite-plugin-electron-renderer": "^0.14.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/systemcleaner-pro.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/systemcleaner-pro/issues"
+=======
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vitest": "^1.0.4",
+    "wait-on": "^7.2.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^23.0.0"
+<<<<<<< Current (Your changes)
+>>>>>>> Incoming (Background Agent changes)
+=======
+>>>>>>> Incoming (Background Agent changes)
+  },
+  "build": {
+    "appId": "com.systemcleaner.pro",
+    "productName": "SystemCleaner Pro",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  }
+}
