@@ -1,0 +1,227 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+          
+      - name: Install Node dependencies
+        run: npm ci
+        
+      - name: Build React app
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Build Python backend
+        run: |
+          pyinstaller --onefile --noconsole --name=cleaner-api api_server.py
+          
+      - name: Build Electron app
+        run: npm run build:electron
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.msi
+            
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          npm ci
+          pip3 install -r requirements.txt
+          
+      - name: Build React app
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Build Electron app
+        run: npm run build:electron -- --mac --${{ matrix.arch }}
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-${{ matrix.arch }}
+          path: |
+            dist-electron/*.dmg
+            dist-electron/*.pkg
+            
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+          
+      - name: Install dependencies
+        run: |
+          npm ci
+          pip install -r requirements.txt
+          
+      - name: Build React app
+        run: npm run build
+        env:
+          NODE_ENV: production
+          
+      - name: Build Electron app
+        run: npm run build:electron -- --linux
+        
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux
+          path: |
+            dist-electron/*.AppImage
+            dist-electron/*.deb
+            dist-electron/*.rpm
+            
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+          
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}
+          release_name: Release ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}
+          body: |
+            ## 🎉 GermanCodeZero Cleaner Release
+            
+            ### ✨ Features
+            - Hardware-beschleunigter System-Scan
+            - KI-gestützte Datei-Analyse
+            - 3D-Visualisierungen
+            - Multi-Platform Support
+            
+            ### 📦 Downloads
+            - **Windows:** `.exe` und `.msi` Installer
+            - **macOS:** `.dmg` und `.pkg` Installer
+            - **Linux:** `.AppImage`, `.deb`, und `.rpm` Pakete
+            
+            ### 🔧 System Requirements
+            - Windows 10/11, macOS 11+, oder Linux
+            - 4GB RAM minimum
+            - 500MB freier Speicherplatz
+            
+          draft: false
+          prerelease: false
+          
+      - name: Upload Release Assets
+        run: |
+          for file in artifacts/**/*; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file"
+              gh release upload ${{ github.ref_name || format('v{0}', github.event.inputs.version) }} "$file" --clobber
+            fi
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  notify-discord:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "{\"content\": \"🚀 **New Release Published!**\n\nVersion: ${{ github.ref_name }}\n\nDownload: https://github.com/${{ github.repository }}/releases\"}" \
+               $DISCORD_WEBHOOK
