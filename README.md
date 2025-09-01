@@ -1,63 +1,45 @@
-# Cleaner – Systemreiniger der nächsten Generation
+# GermanCodeZero-Cleaner
 
-Cleaner ist ein plattformübergreifendes Open-Source-Werkzeug, das ähnlich wie „CCleaner“ überflüssige Dateien findet und entfernt, Treiberprobleme erkennt und mithilfe lokaler Sprachmodelle intelligente Empfehlungen ausspricht.
+Eine moderne, KI-gestützte System-Reinigungs-Anwendung mit 3D-Interface und Hardware-Beschleunigung.
 
-## Haupt-Features
+## Features
 
-1. Hardware-spezifische Datenmüll-Bereinigung
-   * CPU- und GPU-Cache-Dateien
-   * RAM-Auslagerungs-/Hibernation-Dateien
-   * Temporäre SSD- und Festplatten-Artefakte (Log- und Cache-Verzeichnisse)
-   * Mainboard-bezogene Firmware-Logs
-   * Netzteil-(PSU)-Diagnose-Berichte (sofern vorhanden)
-2. Treiber-Identifizierung & Update-Empfehlungen
-3. Schnelle Übersichtssysteme: Temperatur, Auslastung, Lebensdauer-Statistiken
-4. Integrierte lokalen LLMs für Kontexterkennung & Benutzerinteraktion
-   * Deutsches 8B-Modell über Ollama
-   * GPT-OSS-20B für erweiterte Analysen
-5. Erweiterbare Plugin-Architektur – implementiere eigene Module im Verzeichnis `cleaner/hardware` oder `cleaner/plugins`.
+### 🧹 Intelligente System-Reinigung
+- **Hardware-beschleunigter Scan**: Nutzt CPU, GPU, RAM optimal
+- **Umfassende Analyse**: Temp-Dateien, Cache, Registry, Duplikate
+- **KI-gestützte Kategorisierung**: Lokale LLM erklärt gefundene Dateien
+- **Sichere Löschung**: Schutz vor versehentlicher Löschung wichtiger Dateien
+
+### 🎨 Moderne 3D-Benutzeroberfläche
+- **Hologramm-Effekte**: Futuristische Visualisierungen
+- **3D-Animationen**: Flüssige Übergänge und Effekte
+- **Echtzeit-Statistiken**: Live-Anzeige der Reinigungsfortschritte
+- **Responsive Design**: Optimiert für verschiedene Bildschirmgrößen
+
+### 🤖 KI-Integration
+- **Lokale LLM**: Offline-KI für Datenschutz
+- **Interaktive Erklärungen**: Verständliche Beschreibungen der Scan-Ergebnisse
+- **Intelligente Empfehlungen**: KI schlägt optimale Reinigungsstrategien vor
+
+### 💰 Freemium-Modell
+- **Kostenlose Version**: Vollständige Funktionalität mit gelegentlicher Werbung
+- **Premium-Abo**: Werbefreie Nutzung und erweiterte Features
+- **Daten-Sharing-Programm**: Kostenlose Monate durch anonyme Datenspende
+
+## Technische Details
+
+- **Platform**: Windows 10/11 (primär), macOS/Linux (geplant)
+- **Framework**: Python mit modernem UI-Framework
+- **KI-Engine**: Lokale LLM (Ollama/llama.cpp)
+- **3D-Rendering**: OpenGL/WebGL für Hardware-Beschleunigung
 
 ## Installation
 
 ```bash
-# Python-Umgebung anlegen (empfohlen)
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Abhängigkeiten installieren
 pip install -r requirements.txt
+python main.py
 ```
-
-LLM-Modelle:
-1. [Ollama](https://ollama.ai) installieren und das deutsche 8B-Modell herunterladen:
-   ```bash
-   ollama pull deutsch-8b
-   ```
-2. GPT-OSS-20B installieren (ggf. über HuggingFace) und Pfad in der Umgebungsvariable `GPT_OSS_MODEL_PATH` setzen.
-
-## Verwendung
-
-```bash
-python -m cleaner.clean
-# oder
-python main.py clean
-```
-
-Beispiele:
-* Komplettreinigung mit Standard-Profil
-  ```bash
-  cleaner clean
-  ```
-* Nur Treiberanalyse
-  ```bash
-  cleaner drivers scan
-  ```
-
-## Roadmap
-* Automatische Zeitpläne
-* GUI auf Basis von Electron oder Qt
-* Cloud-Sync der Reinigungsprofile (optional)
 
 ## Lizenz
 
-Dieses Projekt steht unter der MIT-Lizenz.
+Proprietär - GermanCodeZero
