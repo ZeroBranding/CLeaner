@@ -1,0 +1,278 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base Styles */
+@layer base {
+  :root {
+    --color-primary: 0 212 255;
+    --color-secondary: 168 85 247;
+    --color-accent-green: 16 185 129;
+    --color-accent-red: 239 68 68;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-dark-bg-primary text-dark-text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-bg-secondary;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-bg-quaternary rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-primary-500/30 text-white;
+  }
+}
+
+/* Component Styles */
+@layer components {
+  /* Glass Card */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-xl;
+  }
+
+  /* Glow Button */
+  .btn-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+    background: linear-gradient(45deg, rgb(var(--color-primary) / 0.1), rgb(var(--color-secondary) / 0.1));
+  }
+
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(45deg, rgb(var(--color-primary) / 0.2), rgb(var(--color-secondary) / 0.2));
+    filter: blur(10px);
+  }
+
+  .btn-glow:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Neon Text */
+  .neon-text {
+    text-shadow: 
+      0 0 10px rgb(var(--color-primary) / 0.8),
+      0 0 20px rgb(var(--color-primary) / 0.6),
+      0 0 30px rgb(var(--color-primary) / 0.4);
+  }
+
+  /* Hologram Effect */
+  .hologram {
+    position: relative;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(0, 212, 255, 0.1) 50%,
+      transparent 70%
+    );
+    background-size: 200% 200%;
+    animation: hologram-scan 3s linear infinite;
+  }
+
+  @keyframes hologram-scan {
+    0% {
+      background-position: 200% 200%;
+    }
+    100% {
+      background-position: -200% -200%;
+    }
+  }
+
+  /* Grid Background */
+  .grid-background {
+    background-image: 
+      linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: -1px -1px;
+  }
+
+  /* Animated Gradient */
+  .animated-gradient {
+    background: linear-gradient(
+      -45deg,
+      #0a0a0a,
+      #1a1a1a,
+      rgb(var(--color-primary) / 0.1),
+      rgb(var(--color-secondary) / 0.1)
+    );
+    background-size: 400% 400%;
+    animation: gradient-shift 15s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Loading Spinner */
+  .spinner {
+    @apply w-12 h-12 rounded-full;
+    background: conic-gradient(
+      from 0deg,
+      transparent,
+      rgb(var(--color-primary)),
+      transparent
+    );
+    animation: spin 1s linear infinite;
+  }
+
+  /* Pulse Dot */
+  .pulse-dot {
+    @apply relative w-3 h-3 bg-green-500 rounded-full;
+  }
+
+  .pulse-dot::before {
+    content: '';
+    @apply absolute inset-0 bg-green-500 rounded-full animate-ping;
+  }
+
+  /* Card Hover Effects */
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 
+      0 0 20px rgba(0, 212, 255, 0.3),
+      0 0 40px rgba(0, 212, 255, 0.2);
+  }
+}
+
+/* Utility Styles */
+@layer utilities {
+  /* Text Gradients */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      rgb(var(--color-primary)),
+      rgb(var(--color-secondary))
+    );
+  }
+
+  /* Border Gradients */
+  .border-gradient {
+    position: relative;
+    background: linear-gradient(#0a0a0a, #0a0a0a) padding-box,
+                linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-secondary))) border-box;
+    border: 2px solid transparent;
+  }
+
+  /* Blur Backdrop */
+  .blur-backdrop {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Custom Animations */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-scan {
+    animation: scan 2s linear infinite;
+  }
+
+  .animate-rotate-slow {
+    animation: rotate 10s linear infinite;
+  }
+
+  /* Disable Text Selection */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Custom Scrollbar for specific elements */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-primary-500/20 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-500/40;
+  }
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Electron Specific */
+.titlebar-drag {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Dark Mode Overrides */
+.dark {
+  color-scheme: dark;
+}

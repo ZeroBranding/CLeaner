@@ -55,7 +55,7 @@ const SystemScan: React.FC = () => {
   const isScanning = useIsScanning();
   const currentScan = useCurrentScan();
   const selectedItems = useSelectedItems();
-  const { connect, isConnected, on, off } = useWebSocket();
+  const { connect, isConnected } = useWebSocket();
 
   const [scanProgress, setScanProgress] = useState(0);
   const [currentFile, setCurrentFile] = useState('');
@@ -118,20 +118,8 @@ const SystemScan: React.FC = () => {
 
   useEffect(() => {
     // Verbinde WebSocket für Live-Updates
-    connect('http://localhost:8000');
-    
-    // Höre auf Scan-Progress Events
-    const handleScanProgress = (data: any) => {
-      setScanProgress(data.progress * 100);
-      setCurrentFile(data.current_file || '');
-    };
-    
-    on('scan_progress', handleScanProgress);
-    
-    return () => {
-      off('scan_progress', handleScanProgress);
-    };
-  }, [connect, on, off]);
+    connect('ws://localhost:8000/ws');
+  }, [connect]);
 
   // Simuliere Scan-Progress (wird normalerweise via WebSocket empfangen)
   useEffect(() => {

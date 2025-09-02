@@ -1,540 +1,663 @@
 """
-🤖 AI Manager with Multi-Provider Support
-Supports Llama3-8B (local), Gemini 1.5, Deepseek 3.1, and Groq API
-Load balancing and intelligent provider selection
+AI Manager für GermanCodeZero-Cleaner
+=====================================
+
+Zentrale KI-Verwaltung mit lokalen und Cloud-basierten Modellen.
 """
 
+import os
+import sys
 import asyncio
-import aiohttp
-import json
-import time
-import logging
-from typing import Dict, List, Optional, Any, Tuple
+import threading
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
-import google.generativeai as genai
-from groq import Groq
-import ollama
+import json
+import logging
+import hashlib
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Lokale LLM-Integration
+try:
+    import ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+
+# Alternative: llama-cpp-python
+try:
+    from llama_cpp import Llama
+    LLAMA_CPP_AVAILABLE = True
+except ImportError:
+    LLAMA_CPP_AVAILABLE = False
+
+# Claude API Integration
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+from config import AI_CONFIG, get_app_data_dir
+from ..core.database import get_database
+
+
+# ============================================================================
+# DATA STRUCTURES
+# ============================================================================
 
 class AIProvider(Enum):
-    """Available AI providers"""
-    OLLAMA_LOCAL = "ollama_local"
-    GEMINI = "gemini"
-    DEEPSEEK = "deepseek"
-    GROQ = "groq"
-    CLAUDE_OPUS = "claude_opus"  # Framework ready for Opus 4.1
+    """Verfügbare AI-Provider."""
+    OLLAMA = "ollama"
+    LLAMA_CPP = "llama_cpp"
+    CLAUDE = "claude"
+    OPENAI = "openai"
+    LOCAL_ONLY = "local_only"
+
+
+@dataclass
+class AIModel:
+    """AI-Modell-Definition."""
+    name: str
+    provider: AIProvider
+    size_gb: float
+    context_length: int
+    capabilities: List[str]
+    language_support: List[str]
+    hardware_requirements: Dict[str, Any]
+    is_available: bool = False
+    is_loaded: bool = False
+
+
+@dataclass
+class AIRequest:
+    """AI-Anfrage."""
+    request_id: str
+    timestamp: datetime
+    prompt: str
+    context: Optional[str] = None
+    max_tokens: int = 500
+    temperature: float = 0.7
+    system_prompt: Optional[str] = None
+    metadata: Dict[str, Any] = None
+
 
 @dataclass
 class AIResponse:
-    """AI response data structure"""
-    content: str
-    provider: AIProvider
+    """AI-Antwort."""
+    request_id: str
+    timestamp: datetime
+    response_text: str
+    model_used: str
     tokens_used: int
-    response_time: float
-    model: str
-    success: bool
-    error: Optional[str] = None
+    response_time_ms: float
+    confidence_score: float = 0.0
+    metadata: Dict[str, Any] = None
 
-@dataclass
-class ProviderConfig:
-    """Provider configuration"""
-    name: str
-    api_key_required: bool
-    local: bool
-    models: List[str]
-    rate_limit: int  # requests per minute
-    cost_per_token: float
-    quality_score: float  # 0-100
 
-class AIProviderClient:
-    """Base class for AI provider clients"""
+# ============================================================================
+# AI MANAGER
+# ============================================================================
+
+class AIManager:
+    """Hauptklasse für AI-Management."""
     
-    def __init__(self, config: ProviderConfig, api_key: Optional[str] = None):
-        self.config = config
-        self.api_key = api_key
-        self.request_count = 0
-        self.last_request_time = 0
+    def __init__(self):
+        """Initialisiert den AI Manager."""
+        self.logger = logging.getLogger(__name__)
         
-    async def generate(self, prompt: str, model: str = None) -> AIResponse:
-        """Generate response from AI provider"""
-        raise NotImplementedError
-
-class OllamaClient(AIProviderClient):
-    """Local Ollama client for Llama3-8B"""
+        # Modell-Registry
+        self.available_models: Dict[str, AIModel] = {}
+        self.active_model: Optional[AIModel] = None
+        
+        # Provider
+        self.ollama_client = None
+        self.llama_cpp_model = None
+        self.claude_client = None
+        
+        # Cache
+        self.response_cache: Dict[str, AIResponse] = {}
+        self.max_cache_size = 1000
+        
+        # Statistiken
+        self.total_requests = 0
+        self.total_tokens = 0
+        self.average_response_time = 0.0
+        
+        # Threading
+        self.executor = threading.ThreadPoolExecutor(max_workers=2)
+        
+        # Initialisierung
+        self._initialize_providers()
+        self._discover_models()
     
-    async def generate(self, prompt: str, model: str = "llama3:8b") -> AIResponse:
-        start_time = time.time()
+    def _initialize_providers(self):
+        """Initialisiert verfügbare AI-Provider."""
+        # Ollama
+        if OLLAMA_AVAILABLE:
+            try:
+                self.ollama_client = ollama.Client()
+                self.logger.info("Ollama provider initialized")
+            except Exception as e:
+                self.logger.warning(f"Ollama initialization failed: {e}")
         
-        try:
-            response = ollama.chat(model=model, messages=[
-                {'role': 'user', 'content': prompt}
-            ])
-            
-            response_time = time.time() - start_time
-            
-            return AIResponse(
-                content=response['message']['content'],
-                provider=AIProvider.OLLAMA_LOCAL,
-                tokens_used=response.get('eval_count', 0),
-                response_time=response_time,
-                model=model,
-                success=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Ollama generation failed: {e}")
-            return AIResponse(
-                content="",
-                provider=AIProvider.OLLAMA_LOCAL,
-                tokens_used=0,
-                response_time=time.time() - start_time,
-                model=model,
-                success=False,
-                error=str(e)
-            )
-
-class GeminiClient(AIProviderClient):
-    """Google Gemini 1.5 client"""
+        # Llama.cpp
+        if LLAMA_CPP_AVAILABLE:
+            try:
+                model_path = self._get_local_model_path()
+                if model_path and model_path.exists():
+                    self.llama_cpp_model = Llama(
+                        model_path=str(model_path),
+                        n_ctx=AI_CONFIG["max_context_length"],
+                        n_threads=os.cpu_count() // 2
+                    )
+                    self.logger.info("Llama.cpp provider initialized")
+            except Exception as e:
+                self.logger.warning(f"Llama.cpp initialization failed: {e}")
+        
+        # Claude API
+        if ANTHROPIC_AVAILABLE and os.getenv("ANTHROPIC_API_KEY"):
+            try:
+                self.claude_client = anthropic.Anthropic(
+                    api_key=os.getenv("ANTHROPIC_API_KEY")
+                )
+                self.logger.info("Claude provider initialized")
+            except Exception as e:
+                self.logger.warning(f"Claude initialization failed: {e}")
     
-    def __init__(self, config: ProviderConfig, api_key: str):
-        super().__init__(config, api_key)
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+    def _get_local_model_path(self) -> Optional[Path]:
+        """Gibt Pfad zu lokalem Modell zurück."""
+        models_dir = get_app_data_dir() / "models"
+        models_dir.mkdir(exist_ok=True)
         
-    async def generate(self, prompt: str, model: str = "gemini-1.5-pro") -> AIResponse:
-        start_time = time.time()
+        # Suche nach .gguf Dateien
+        for model_file in models_dir.glob("*.gguf"):
+            return model_file
         
-        try:
-            response = self.model.generate_content(prompt)
-            response_time = time.time() - start_time
-            
-            return AIResponse(
-                content=response.text,
-                provider=AIProvider.GEMINI,
-                tokens_used=response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0,
-                response_time=response_time,
-                model=model,
-                success=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Gemini generation failed: {e}")
-            return AIResponse(
-                content="",
-                provider=AIProvider.GEMINI,
-                tokens_used=0,
-                response_time=time.time() - start_time,
-                model=model,
-                success=False,
-                error=str(e)
-            )
-
-class GroqClient(AIProviderClient):
-    """Groq API client"""
+        return None
     
-    def __init__(self, config: ProviderConfig, api_key: str):
-        super().__init__(config, api_key)
-        self.client = Groq(api_key=api_key)
-        
-    async def generate(self, prompt: str, model: str = "llama3-8b-8192") -> AIResponse:
-        start_time = time.time()
-        
-        try:
-            chat_completion = self.client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=model,
-                temperature=0.7,
-                max_tokens=1024
+    def _discover_models(self):
+        """Entdeckt verfügbare Modelle."""
+        # Vordefinierte Modelle
+        models = [
+            AIModel(
+                name="llama2:7b",
+                provider=AIProvider.OLLAMA,
+                size_gb=3.8,
+                context_length=4096,
+                capabilities=["text_generation", "summarization", "explanation"],
+                language_support=["de", "en", "es", "fr"],
+                hardware_requirements={"ram_gb": 8, "vram_gb": 0}
+            ),
+            AIModel(
+                name="mistral:7b",
+                provider=AIProvider.OLLAMA,
+                size_gb=4.1,
+                context_length=8192,
+                capabilities=["text_generation", "code", "analysis"],
+                language_support=["de", "en"],
+                hardware_requirements={"ram_gb": 8, "vram_gb": 0}
+            ),
+            AIModel(
+                name="tinyllama:1.1b",
+                provider=AIProvider.OLLAMA,
+                size_gb=0.6,
+                context_length=2048,
+                capabilities=["text_generation", "simple_tasks"],
+                language_support=["de", "en"],
+                hardware_requirements={"ram_gb": 2, "vram_gb": 0}
+            ),
+            AIModel(
+                name="claude-3-opus",
+                provider=AIProvider.CLAUDE,
+                size_gb=0,  # Cloud-basiert
+                context_length=200000,
+                capabilities=["text_generation", "code", "analysis", "vision"],
+                language_support=["de", "en", "es", "fr", "it", "pt", "ru", "ja", "zh"],
+                hardware_requirements={"ram_gb": 0, "vram_gb": 0}
             )
-            
-            response_time = time.time() - start_time
-            
-            return AIResponse(
-                content=chat_completion.choices[0].message.content,
-                provider=AIProvider.GROQ,
-                tokens_used=chat_completion.usage.total_tokens,
-                response_time=response_time,
-                model=model,
-                success=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Groq generation failed: {e}")
-            return AIResponse(
-                content="",
-                provider=AIProvider.GROQ,
-                tokens_used=0,
-                response_time=time.time() - start_time,
-                model=model,
-                success=False,
-                error=str(e)
-            )
-
-class DeepseekClient(AIProviderClient):
-    """Deepseek 3.1 client"""
-    
-    async def generate(self, prompt: str, model: str = "deepseek-chat") -> AIResponse:
-        start_time = time.time()
+        ]
         
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    'Authorization': f'Bearer {self.api_key}',
-                    'Content-Type': 'application/json'
-                }
-                
-                data = {
-                    'model': model,
-                    'messages': [{'role': 'user', 'content': prompt}],
-                    'temperature': 0.7,
-                    'max_tokens': 1024
-                }
-                
-                async with session.post(
-                    'https://api.deepseek.com/v1/chat/completions',
-                    headers=headers,
-                    json=data
-                ) as resp:
-                    result = await resp.json()
-                    response_time = time.time() - start_time
-                    
-                    if resp.status == 200:
-                        return AIResponse(
-                            content=result['choices'][0]['message']['content'],
-                            provider=AIProvider.DEEPSEEK,
-                            tokens_used=result['usage']['total_tokens'],
-                            response_time=response_time,
-                            model=model,
-                            success=True
+        for model in models:
+            self.available_models[model.name] = model
+            model.is_available = self._check_model_availability(model)
+        
+        # Entdecke Ollama-Modelle
+        if self.ollama_client:
+            try:
+                installed_models = self.ollama_client.list()
+                for model_info in installed_models.get("models", []):
+                    name = model_info["name"]
+                    if name not in self.available_models:
+                        self.available_models[name] = AIModel(
+                            name=name,
+                            provider=AIProvider.OLLAMA,
+                            size_gb=model_info.get("size", 0) / (1024**3),
+                            context_length=4096,
+                            capabilities=["text_generation"],
+                            language_support=["de", "en"],
+                            hardware_requirements={"ram_gb": 8, "vram_gb": 0},
+                            is_available=True
                         )
-                    else:
-                        raise Exception(f"API error: {result}")
-                        
-        except Exception as e:
-            logger.error(f"Deepseek generation failed: {e}")
-            return AIResponse(
-                content="",
-                provider=AIProvider.DEEPSEEK,
-                tokens_used=0,
-                response_time=time.time() - start_time,
-                model=model,
-                success=False,
-                error=str(e)
-            )
-
-class AIManager(QObject):
-    """Intelligent AI manager with load balancing and provider selection"""
+            except Exception as e:
+                self.logger.debug(f"Failed to list Ollama models: {e}")
     
-    # Signals
-    response_ready = pyqtSignal(AIResponse)
-    provider_status_changed = pyqtSignal(str, bool)
+    def _check_model_availability(self, model: AIModel) -> bool:
+        """Prüft ob Modell verfügbar ist."""
+        if model.provider == AIProvider.OLLAMA and self.ollama_client:
+            try:
+                models = self.ollama_client.list()
+                return any(m["name"] == model.name for m in models.get("models", []))
+            except:
+                return False
+        
+        elif model.provider == AIProvider.LLAMA_CPP and self.llama_cpp_model:
+            return True
+        
+        elif model.provider == AIProvider.CLAUDE and self.claude_client:
+            return True
+        
+        return False
     
-    def __init__(self, db_manager=None):
-        super().__init__()
-        self.db_manager = db_manager
-        self.providers: Dict[AIProvider, AIProviderClient] = {}
-        self.provider_configs = self._init_provider_configs()
-        self.provider_health: Dict[AIProvider, bool] = {}
-        
-        # Load balancing metrics
-        self.provider_metrics: Dict[AIProvider, Dict[str, float]] = {}
-        
-        self._init_providers()
-        
-    def _init_provider_configs(self) -> Dict[AIProvider, ProviderConfig]:
-        """Initialize provider configurations"""
-        return {
-            AIProvider.OLLAMA_LOCAL: ProviderConfig(
-                name="Llama3-8B (Local)",
-                api_key_required=False,
-                local=True,
-                models=["llama3:8b", "llama3:8b-instruct"],
-                rate_limit=60,  # No real limit for local
-                cost_per_token=0.0,
-                quality_score=75.0
-            ),
-            AIProvider.GEMINI: ProviderConfig(
-                name="Google Gemini 1.5",
-                api_key_required=True,
-                local=False,
-                models=["gemini-1.5-pro", "gemini-1.5-flash"],
-                rate_limit=60,
-                cost_per_token=0.000125,
-                quality_score=90.0
-            ),
-            AIProvider.GROQ: ProviderConfig(
-                name="Groq (Free)",
-                api_key_required=True,
-                local=False,
-                models=["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768"],
-                rate_limit=30,
-                cost_per_token=0.0,  # Free tier
-                quality_score=85.0
-            ),
-            AIProvider.DEEPSEEK: ProviderConfig(
-                name="Deepseek 3.1",
-                api_key_required=True,
-                local=False,
-                models=["deepseek-chat", "deepseek-coder"],
-                rate_limit=60,
-                cost_per_token=0.00014,
-                quality_score=88.0
-            ),
-            AIProvider.CLAUDE_OPUS: ProviderConfig(
-                name="Claude Opus 4.1 (Superior Design)",
-                api_key_required=True,
-                local=False,
-                models=["claude-3-opus-20240229", "claude-4-opus-20241201"],
-                rate_limit=50,
-                cost_per_token=0.015,
-                quality_score=95.0  # Highest quality, especially for design tasks
-            )
-        }
+    # ========================================================================
+    # MODEL MANAGEMENT
+    # ========================================================================
     
-    def _init_providers(self):
-        """Initialize AI provider clients"""
-        # Always initialize Ollama (local)
-        self.providers[AIProvider.OLLAMA_LOCAL] = OllamaClient(
-            self.provider_configs[AIProvider.OLLAMA_LOCAL]
+    async def load_model(self, model_name: str) -> bool:
+        """Lädt ein AI-Modell."""
+        if model_name not in self.available_models:
+            self.logger.error(f"Model {model_name} not found")
+            return False
+        
+        model = self.available_models[model_name]
+        
+        if not model.is_available:
+            # Versuche Modell zu installieren
+            if not await self.install_model(model_name):
+                return False
+        
+        self.active_model = model
+        model.is_loaded = True
+        
+        self.logger.info(f"Loaded model: {model_name}")
+        return True
+    
+    async def install_model(self, model_name: str) -> bool:
+        """Installiert ein AI-Modell."""
+        if model_name not in self.available_models:
+            return False
+        
+        model = self.available_models[model_name]
+        
+        if model.provider == AIProvider.OLLAMA and self.ollama_client:
+            try:
+                self.logger.info(f"Installing model {model_name}...")
+                await self.ollama_client.pull(model_name)
+                model.is_available = True
+                return True
+            except Exception as e:
+                self.logger.error(f"Failed to install model: {e}")
+                return False
+        
+        return False
+    
+    def unload_model(self):
+        """Entlädt das aktuelle Modell."""
+        if self.active_model:
+            self.active_model.is_loaded = False
+            self.active_model = None
+    
+    # ========================================================================
+    # INFERENCE
+    # ========================================================================
+    
+    async def generate(self, prompt: str, context: Optional[str] = None,
+                       max_tokens: int = 500, temperature: float = 0.7,
+                       system_prompt: Optional[str] = None) -> AIResponse:
+        """Generiert eine AI-Antwort."""
+        # Erstelle Request
+        request = AIRequest(
+            request_id=self._generate_request_id(prompt),
+            timestamp=datetime.now(),
+            prompt=prompt,
+            context=context,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system_prompt=system_prompt
         )
         
-        # Initialize cloud providers if API keys are available
-        if self.db_manager:
-            for provider in [AIProvider.GEMINI, AIProvider.GROQ, AIProvider.DEEPSEEK]:
-                api_key = self.db_manager.get_api_key(provider.value)
-                if api_key:
-                    if provider == AIProvider.GEMINI:
-                        self.providers[provider] = GeminiClient(
-                            self.provider_configs[provider], api_key
-                        )
-                    elif provider == AIProvider.GROQ:
-                        self.providers[provider] = GroqClient(
-                            self.provider_configs[provider], api_key
-                        )
-                    elif provider == AIProvider.DEEPSEEK:
-                        self.providers[provider] = DeepseekClient(
-                            self.provider_configs[provider], api_key
-                        )
+        # Cache-Check
+        cache_key = self._get_cache_key(request)
+        if cache_key in self.response_cache:
+            cached = self.response_cache[cache_key]
+            self.logger.debug(f"Returning cached response for request {request.request_id}")
+            return cached
         
-        # Test provider health
-        asyncio.create_task(self._test_provider_health())
+        # Wähle Modell
+        if not self.active_model:
+            # Lade Fallback-Modell
+            await self.load_model(AI_CONFIG["fallback_model"])
         
-    async def _test_provider_health(self):
-        """Test health of all providers"""
-        for provider, client in self.providers.items():
-            try:
-                response = await client.generate("Test message", model=client.config.models[0])
-                self.provider_health[provider] = response.success
-                self.provider_status_changed.emit(provider.value, response.success)
-                
-                if response.success:
-                    logger.info(f"Provider {provider.value} is healthy")
-                else:
-                    logger.warning(f"Provider {provider.value} failed health check")
-                    
-            except Exception as e:
-                self.provider_health[provider] = False
-                self.provider_status_changed.emit(provider.value, False)
-                logger.error(f"Health check failed for {provider.value}: {e}")
-    
-    def set_api_key(self, provider: str, api_key: str):
-        """Set API key for a provider"""
-        if self.db_manager:
-            self.db_manager.store_api_key(provider, api_key)
-            # Reinitialize providers
-            self._init_providers()
-    
-    def select_best_provider(self, prompt: str, priority: str = "balanced") -> AIProvider:
-        """Intelligent provider selection based on various factors"""
-        available_providers = [p for p, healthy in self.provider_health.items() if healthy]
+        if not self.active_model:
+            return self._create_fallback_response(request)
         
-        if not available_providers:
-            # Fallback to local if available
-            if AIProvider.OLLAMA_LOCAL in self.providers:
-                return AIProvider.OLLAMA_LOCAL
+        # Generiere Antwort
+        start_time = datetime.now()
+        
+        try:
+            if self.active_model.provider == AIProvider.OLLAMA:
+                response_text = await self._generate_ollama(request)
+            elif self.active_model.provider == AIProvider.LLAMA_CPP:
+                response_text = await self._generate_llama_cpp(request)
+            elif self.active_model.provider == AIProvider.CLAUDE:
+                response_text = await self._generate_claude(request)
             else:
-                raise Exception("No healthy AI providers available")
-        
-        if priority == "speed":
-            # Prefer local first, then fastest cloud
-            if AIProvider.OLLAMA_LOCAL in available_providers:
-                return AIProvider.OLLAMA_LOCAL
-            return min(available_providers, key=lambda p: self._get_avg_response_time(p))
+                response_text = self._generate_fallback(request)
             
-        elif priority == "quality":
-            # Prefer highest quality provider
-            return max(available_providers, key=lambda p: self.provider_configs[p].quality_score)
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
             
-        elif priority == "cost":
-            # Prefer free providers
-            free_providers = [p for p in available_providers 
-                            if self.provider_configs[p].cost_per_token == 0.0]
-            if free_providers:
-                return max(free_providers, key=lambda p: self.provider_configs[p].quality_score)
-            else:
-                return min(available_providers, key=lambda p: self.provider_configs[p].cost_per_token)
-        
-        else:  # balanced
-            # Balance between quality, speed, and cost
-            scores = {}
-            for provider in available_providers:
-                config = self.provider_configs[provider]
-                speed_score = 100 - self._get_avg_response_time(provider)
-                cost_score = 100 if config.cost_per_token == 0 else max(0, 100 - config.cost_per_token * 10000)
-                
-                # Weighted score: 40% quality, 30% speed, 30% cost
-                scores[provider] = (
-                    config.quality_score * 0.4 + 
-                    speed_score * 0.3 + 
-                    cost_score * 0.3
-                )
-            
-            return max(scores.keys(), key=lambda p: scores[p])
-    
-    def _get_avg_response_time(self, provider: AIProvider) -> float:
-        """Get average response time for provider"""
-        if provider not in self.provider_metrics:
-            return 5.0  # Default assumption
-        
-        metrics = self.provider_metrics[provider]
-        return metrics.get('avg_response_time', 5.0)
-    
-    async def generate_response(self, prompt: str, provider: AIProvider = None, 
-                              model: str = None, priority: str = "balanced") -> AIResponse:
-        """Generate AI response with intelligent provider selection"""
-        
-        if provider is None:
-            provider = self.select_best_provider(prompt, priority)
-        
-        if provider not in self.providers:
-            raise Exception(f"Provider {provider.value} not available")
-        
-        client = self.providers[provider]
-        
-        # Select model if not specified
-        if model is None:
-            model = client.config.models[0]
-        
-        # Check rate limiting
-        if not self._check_rate_limit(provider):
-            # Try fallback provider
-            fallback_provider = self.select_best_provider(prompt, "speed")
-            if fallback_provider != provider and self._check_rate_limit(fallback_provider):
-                provider = fallback_provider
-                client = self.providers[provider]
-                model = client.config.models[0]
-            else:
-                raise Exception(f"Rate limit exceeded for {provider.value}")
-        
-        # Generate response
-        response = await client.generate(prompt, model)
-        
-        # Update metrics
-        self._update_provider_metrics(provider, response)
-        
-        # Store in database if available
-        if self.db_manager and response.success:
-            self.db_manager.store_conversation(
-                session_id="current",
-                user_message=prompt,
-                ai_response=response.content,
-                ai_provider=provider.value,
-                tokens_used=response.tokens_used,
-                response_time=response.response_time
+            response = AIResponse(
+                request_id=request.request_id,
+                timestamp=datetime.now(),
+                response_text=response_text,
+                model_used=self.active_model.name,
+                tokens_used=len(response_text.split()),  # Vereinfacht
+                response_time_ms=response_time,
+                confidence_score=0.8
             )
-        
-        return response
-    
-    def _check_rate_limit(self, provider: AIProvider) -> bool:
-        """Check if provider is within rate limits"""
-        config = self.provider_configs[provider]
-        current_time = time.time()
-        
-        if provider not in self.provider_metrics:
-            self.provider_metrics[provider] = {'last_request': 0, 'request_count': 0}
-        
-        metrics = self.provider_metrics[provider]
-        
-        # Reset counter if more than a minute has passed
-        if current_time - metrics['last_request'] > 60:
-            metrics['request_count'] = 0
-        
-        return metrics['request_count'] < config.rate_limit
-    
-    def _update_provider_metrics(self, provider: AIProvider, response: AIResponse):
-        """Update provider performance metrics"""
-        current_time = time.time()
-        
-        if provider not in self.provider_metrics:
-            self.provider_metrics[provider] = {
-                'request_count': 0,
-                'total_response_time': 0,
-                'total_requests': 0,
-                'success_count': 0,
-                'last_request': 0
-            }
-        
-        metrics = self.provider_metrics[provider]
-        metrics['request_count'] += 1
-        metrics['total_requests'] += 1
-        metrics['total_response_time'] += response.response_time
-        metrics['last_request'] = current_time
-        
-        if response.success:
-            metrics['success_count'] += 1
-        
-        # Calculate averages
-        metrics['avg_response_time'] = metrics['total_response_time'] / metrics['total_requests']
-        metrics['success_rate'] = metrics['success_count'] / metrics['total_requests']
-    
-    def get_provider_status(self) -> Dict[str, Dict[str, Any]]:
-        """Get status of all providers"""
-        status = {}
-        
-        for provider, config in self.provider_configs.items():
-            metrics = self.provider_metrics.get(provider, {})
             
-            status[provider.value] = {
-                'name': config.name,
-                'available': provider in self.providers,
-                'healthy': self.provider_health.get(provider, False),
-                'local': config.local,
-                'quality_score': config.quality_score,
-                'avg_response_time': metrics.get('avg_response_time', 0),
-                'success_rate': metrics.get('success_rate', 0),
-                'total_requests': metrics.get('total_requests', 0)
+            # Cache speichern
+            self.response_cache[cache_key] = response
+            self._cleanup_cache()
+            
+            # Statistiken aktualisieren
+            self.total_requests += 1
+            self.total_tokens += response.tokens_used
+            self.average_response_time = (
+                (self.average_response_time * (self.total_requests - 1) + response_time) 
+                / self.total_requests
+            )
+            
+            # In Datenbank speichern
+            self._save_to_database(request, response)
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"Generation failed: {e}")
+            return self._create_error_response(request, str(e))
+    
+    async def _generate_ollama(self, request: AIRequest) -> str:
+        """Generiert mit Ollama."""
+        if not self.ollama_client:
+            raise RuntimeError("Ollama not available")
+        
+        messages = []
+        
+        if request.system_prompt:
+            messages.append({"role": "system", "content": request.system_prompt})
+        
+        if request.context:
+            messages.append({"role": "user", "content": f"Kontext: {request.context}"})
+        
+        messages.append({"role": "user", "content": request.prompt})
+        
+        response = await self.ollama_client.chat(
+            model=self.active_model.name,
+            messages=messages,
+            options={
+                "temperature": request.temperature,
+                "num_predict": request.max_tokens
             }
+        )
         
-        return status
+        return response["message"]["content"]
     
-    async def benchmark_providers(self, test_prompt: str = "Explain quantum computing in one sentence.") -> Dict[str, float]:
-        """Benchmark all available providers"""
-        results = {}
+    async def _generate_llama_cpp(self, request: AIRequest) -> str:
+        """Generiert mit Llama.cpp."""
+        if not self.llama_cpp_model:
+            raise RuntimeError("Llama.cpp not available")
         
-        for provider in self.providers.keys():
-            if self.provider_health.get(provider, False):
-                try:
-                    response = await self.generate_response(test_prompt, provider)
-                    if response.success:
-                        # Score based on response time and quality
-                        quality_score = self.provider_configs[provider].quality_score
-                        speed_score = max(0, 100 - response.response_time * 10)
-                        results[provider.value] = (quality_score + speed_score) / 2
-                    else:
-                        results[provider.value] = 0
-                except Exception as e:
-                    logger.error(f"Benchmark failed for {provider.value}: {e}")
-                    results[provider.value] = 0
+        # Erstelle Prompt
+        full_prompt = ""
         
-        return results
+        if request.system_prompt:
+            full_prompt += f"System: {request.system_prompt}\n\n"
+        
+        if request.context:
+            full_prompt += f"Kontext: {request.context}\n\n"
+        
+        full_prompt += f"Benutzer: {request.prompt}\n\nAssistent:"
+        
+        # Generiere
+        output = self.llama_cpp_model(
+            full_prompt,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            echo=False
+        )
+        
+        return output["choices"][0]["text"].strip()
     
-    def get_available_models(self) -> Dict[str, List[str]]:
-        """Get available models for each provider"""
-        models = {}
-        for provider, config in self.provider_configs.items():
-            if provider in self.providers:
-                models[provider.value] = config.models
-        return models
+    async def _generate_claude(self, request: AIRequest) -> str:
+        """Generiert mit Claude."""
+        if not self.claude_client:
+            raise RuntimeError("Claude not available")
+        
+        messages = []
+        
+        if request.context:
+            messages.append({
+                "role": "user",
+                "content": f"Kontext: {request.context}\n\n{request.prompt}"
+            })
+        else:
+            messages.append({
+                "role": "user",
+                "content": request.prompt
+            })
+        
+        response = self.claude_client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            system=request.system_prompt or AI_CONFIG["system_prompts"]["general_assistant"],
+            messages=messages
+        )
+        
+        return response.content[0].text
+    
+    def _generate_fallback(self, request: AIRequest) -> str:
+        """Fallback-Generierung ohne AI."""
+        # Einfache Template-basierte Antworten
+        if "was ist" in request.prompt.lower():
+            return "Dies ist eine Datei oder ein Prozess auf Ihrem System. Weitere Details benötigen eine AI-Analyse."
+        elif "warum" in request.prompt.lower():
+            return "Die genauen Gründe können variieren. Eine AI-Analyse würde detailliertere Informationen liefern."
+        elif "empfehlung" in request.prompt.lower():
+            return "Basierend auf den Daten empfehle ich eine vorsichtige Bereinigung. Starten Sie mit temporären Dateien."
+        else:
+            return "Für eine detaillierte Analyse wird eine AI-Verbindung benötigt."
+    
+    # ========================================================================
+    # SPECIALIZED FUNCTIONS
+    # ========================================================================
+    
+    async def explain_file(self, file_path: str, file_size: int, 
+                          file_type: str, category: str) -> str:
+        """Erklärt eine Datei."""
+        prompt = f"""
+        Erkläre diese Datei kurz und verständlich:
+        Pfad: {file_path}
+        Größe: {file_size} Bytes
+        Typ: {file_type}
+        Kategorie: {category}
+        
+        Gib eine kurze Erklärung in 1-2 Sätzen, was diese Datei ist und ob sie sicher gelöscht werden kann.
+        """
+        
+        response = await self.generate(
+            prompt=prompt,
+            system_prompt=AI_CONFIG["system_prompts"]["file_explanation"],
+            max_tokens=100,
+            temperature=0.3
+        )
+        
+        return response.response_text
+    
+    async def get_cleaning_recommendation(self, scan_stats: Dict[str, Any]) -> str:
+        """Gibt Bereinigungsempfehlung."""
+        prompt = f"""
+        Analysiere diese Scan-Ergebnisse und gib eine Empfehlung:
+        
+        Gefundene Dateien: {scan_stats.get('total_files', 0)}
+        Gesamtgröße: {scan_stats.get('total_size_mb', 0):.1f} MB
+        Kategorien: {', '.join(scan_stats.get('categories', []))}
+        
+        Temporäre Dateien: {scan_stats.get('temp_files', 0)}
+        Cache-Dateien: {scan_stats.get('cache_files', 0)}
+        Duplikate: {scan_stats.get('duplicates', 0)}
+        
+        Gib eine konkrete Empfehlung, welche Bereiche zuerst bereinigt werden sollten.
+        """
+        
+        response = await self.generate(
+            prompt=prompt,
+            system_prompt=AI_CONFIG["system_prompts"]["cleaning_recommendation"],
+            max_tokens=200,
+            temperature=0.5
+        )
+        
+        return response.response_text
+    
+    async def chat(self, message: str, conversation_history: List[Dict[str, str]] = None) -> str:
+        """Chat-Funktion für Benutzerinteraktion."""
+        # Erstelle Kontext aus Historie
+        context = ""
+        if conversation_history:
+            for entry in conversation_history[-5:]:  # Letzte 5 Nachrichten
+                context += f"{entry['role']}: {entry['content']}\n"
+        
+        response = await self.generate(
+            prompt=message,
+            context=context,
+            system_prompt=AI_CONFIG["system_prompts"]["general_assistant"],
+            max_tokens=300,
+            temperature=0.7
+        )
+        
+        return response.response_text
+    
+    # ========================================================================
+    # UTILITY METHODS
+    # ========================================================================
+    
+    def _generate_request_id(self, prompt: str) -> str:
+        """Generiert eindeutige Request-ID."""
+        timestamp = datetime.now().isoformat()
+        hash_input = f"{timestamp}:{prompt[:100]}"
+        return hashlib.md5(hash_input.encode()).hexdigest()[:16]
+    
+    def _get_cache_key(self, request: AIRequest) -> str:
+        """Generiert Cache-Key für Request."""
+        key_parts = [
+            request.prompt[:200],
+            str(request.temperature),
+            str(request.max_tokens),
+            request.system_prompt or ""
+        ]
+        key_string = "|".join(key_parts)
+        return hashlib.sha256(key_string.encode()).hexdigest()
+    
+    def _cleanup_cache(self):
+        """Bereinigt Cache wenn zu groß."""
+        if len(self.response_cache) > self.max_cache_size:
+            # Entferne älteste Einträge
+            sorted_cache = sorted(
+                self.response_cache.items(),
+                key=lambda x: x[1].timestamp
+            )
+            
+            to_remove = len(self.response_cache) - self.max_cache_size + 100
+            for key, _ in sorted_cache[:to_remove]:
+                del self.response_cache[key]
+    
+    def _create_fallback_response(self, request: AIRequest) -> AIResponse:
+        """Erstellt Fallback-Antwort."""
+        return AIResponse(
+            request_id=request.request_id,
+            timestamp=datetime.now(),
+            response_text=self._generate_fallback(request),
+            model_used="fallback",
+            tokens_used=50,
+            response_time_ms=10,
+            confidence_score=0.3
+        )
+    
+    def _create_error_response(self, request: AIRequest, error: str) -> AIResponse:
+        """Erstellt Fehler-Antwort."""
+        return AIResponse(
+            request_id=request.request_id,
+            timestamp=datetime.now(),
+            response_text=f"Ein Fehler ist aufgetreten: {error}",
+            model_used="error",
+            tokens_used=0,
+            response_time_ms=0,
+            confidence_score=0.0,
+            metadata={"error": error}
+        )
+    
+    def _save_to_database(self, request: AIRequest, response: AIResponse):
+        """Speichert Request/Response in Datenbank."""
+        try:
+            db = get_database()
+            
+            # Vereinfachte Speicherung als AI-Erklärung
+            if "file" in request.prompt.lower():
+                # Extrahiere Dateipfad aus Prompt (vereinfacht)
+                file_pattern = request.prompt[:50]
+                db.save_ai_explanation(
+                    file_pattern=file_pattern,
+                    explanation=response.response_text,
+                    category="general",
+                    safety_score=response.confidence_score
+                )
+        except Exception as e:
+            self.logger.debug(f"Failed to save to database: {e}")
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Gibt AI-Nutzungsstatistiken zurück."""
+        return {
+            "total_requests": self.total_requests,
+            "total_tokens": self.total_tokens,
+            "average_response_time_ms": self.average_response_time,
+            "cache_size": len(self.response_cache),
+            "active_model": self.active_model.name if self.active_model else None,
+            "available_models": list(self.available_models.keys())
+        }
+    
+    def cleanup(self):
+        """Bereinigt Ressourcen."""
+        self.unload_model()
+        self.executor.shutdown(wait=False)
+
+
+# ============================================================================
+# AI MANAGER SINGLETON
+# ============================================================================
+
+_ai_manager_instance: Optional[AIManager] = None
+_ai_manager_lock = threading.Lock()
+
+
+def get_ai_manager() -> AIManager:
+    """Gibt die Singleton AI-Manager-Instanz zurück."""
+    global _ai_manager_instance
+    
+    if _ai_manager_instance is None:
+        with _ai_manager_lock:
+            if _ai_manager_instance is None:
+                _ai_manager_instance = AIManager()
+    
+    return _ai_manager_instance

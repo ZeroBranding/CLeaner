@@ -1,161 +1,202 @@
 {
-  "name": "systemcleaner-pro",
+  "name": "germancodezero-cleaner",
   "version": "1.0.0",
-  "description": "Intelligenter System-Cleaner mit KI-Chat-Unterstützung für optimale Performance",
-  "main": "dist/main.js",
-  "homepage": "https://github.com/your-username/systemcleaner-pro",
-  "author": {
-    "name": "SystemCleaner Team",
-    "email": "support@systemcleaner.pro"
-  },
-  "license": "MIT",
-  "keywords": [
-    "system-cleaner",
-    "cache-cleaner",
-    "driver-updater",
-    "performance-optimizer",
-    "ai-chat",
-    "system-maintenance",
-    "gpu-cache",
-    "cpu-cache",
-    "ssd-cache",
-    "ram-optimizer"
-  ],
+  "description": "KI-gestützte System-Reinigungs-Anwendung mit 3D-Interface",
+  "main": "electron/main.js",
+  "homepage": "./",
+  "author": "GermanCodeZero",
+  "license": "Proprietary",
   "scripts": {
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
-    "dev:renderer": "vite",
-    "dev:main": "tsc -p tsconfig.main.json && electron .",
-    "build": "npm run build:renderer && npm run build:main",
-    "build:renderer": "vite build",
-    "build:main": "tsc -p tsconfig.main.json",
+    "start": "concurrently \"npm run start:react\" \"wait-on http://localhost:3000 && npm run start:electron\"",
+    "start:react": "vite",
+    "start:electron": "electron .",
+    "start:api": "python api_server.py",
+    "build": "vite build",
+    "build:electron": "npm run build && electron-builder",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:all": "npm run build && electron-builder -mwl",
+    "dist": "electron-builder",
     "preview": "vite preview",
-    "electron": "electron .",
-    "electron:dev": "electron . --dev",
-    "analyze": "node scripts/analyze.js",
-    "cleanup": "node scripts/cleanup.js",
-    "drivers": "node scripts/drivers.js",
-    "chat": "node scripts/chat.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
-    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
-    "type-check": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "prepare": "husky install",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "axios": "^1.4.0",
-    "buffer": "^6.0.3",
-    "chalk": "^4.1.2",
-    "child_process": "^1.0.2",
-    "commander": "^11.0.0",
-    "crypto": "^1.0.1",
-    "electron": "^25.0.0",
-    "electron-store": "^8.1.0",
-    "events": "^3.3.0",
-    "fs-extra": "^11.1.1",
-    "http": "^0.0.1-security",
-    "https": "^1.0.0",
-    "inquirer": "^9.2.5",
-    "node-cron": "^3.0.2",
-    "node-pty": "^1.0.0",
-    "openai": "^4.0.0",
-    "ora": "^7.0.1",
-    "os": "^0.1.2",
-    "path": "^0.12.7",
-    "process": "^0.11.10",
-    "progress": "^2.0.3",
-    "querystring": "^0.2.1",
+    "@react-three/drei": "^9.89.0",
+    "@react-three/fiber": "^8.15.11",
+    "@react-three/postprocessing": "^2.16.1",
+    "@tanstack/react-query": "^5.12.0",
+    "axios": "^1.6.2",
+    "clsx": "^2.0.0",
+    "date-fns": "^2.30.0",
+    "framer-motion": "^10.16.5",
+    "lucide-react": "^0.294.0",
+    "postprocessing": "^6.36.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.0",
-    "stream": "^0.0.2",
-    "systeminformation": "^5.21.0",
-    "table": "^6.8.1",
-    "url": "^0.11.3",
-    "util": "^0.12.5",
-    "ws": "^8.13.0",
-    "zlib": "^1.0.5"
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.10.1",
+    "socket.io-client": "^4.5.4",
+    "tailwind-merge": "^2.1.0",
+    "three": "^0.159.0",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.1.0",
-    "@testing-library/react": "^14.0.0",
-    "@types/fs-extra": "^11.0.1",
-    "@types/node": "^20.4.5",
-    "@types/node-cron": "^3.0.7",
-    "@types/progress": "^2.0.5",
-    "@types/react": "^18.3.24",
-    "@types/react-dom": "^18.2.7",
-    "@types/ws": "^8.5.5",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@vitejs/plugin-react": "^4.0.3",
-    "autoprefixer": "^10.4.14",
-    "concurrently": "^8.2.0",
-    "electron-builder": "^24.6.3",
-    "eslint": "^8.45.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-react": "^7.33.0",
+    "@types/node": "^20.10.4",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^27.1.3",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "husky": "^8.0.3",
-    "jsdom": "^23.0.0",
-    "lint-staged": "^13.2.3",
     "postcss": "^8.4.32",
-    "prettier": "^3.0.0",
     "tailwindcss": "^3.3.6",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
-    "vite-plugin-electron": "^0.11.2",
-    "vite-plugin-electron-renderer": "^0.14.1",
     "vitest": "^1.0.4",
-    "wait-on": "^7.2.0"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/systemcleaner-pro.git"
-  },
-  "bugs": {
-    "url": "https://github.com/your-username/systemcleaner-pro/issues"
+    "wait-on": "^7.2.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/react-hooks": "^8.0.1",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^23.0.0"
   },
   "build": {
-    "appId": "com.systemcleaner.pro",
-    "productName": "SystemCleaner Pro",
+    "appId": "com.germancodezero.cleaner",
+    "productName": "GermanCodeZero Cleaner",
+    "copyright": "Copyright © 2024 GermanCodeZero",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
-      "node_modules/**/*"
+      "electron/**/*",
+      "api_server.py",
+      "cleaner/**/*",
+      "src/core/**/*",
+      "src/ai/**/*",
+      "config.py",
+      "cleaner_engine.py",
+      "requirements.txt",
+      "!**/__pycache__",
+      "!**/*.pyc"
     ],
-    "mac": {
-      "category": "public.app-category.utilities",
-      "target": "dmg"
-    },
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "msi",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "certificateFile": null,
+      "certificatePassword": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GermanCodeZero Cleaner"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "pkg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 410,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 150,
+          "type": "file"
+        }
+      ]
     },
     "linux": {
-      "target": "AppImage"
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "maintainer": "GermanCodeZero",
+      "synopsis": "KI-gestützte System-Reinigungs-Anwendung",
+      "description": "Eine fortschrittliche System-Reinigungs-Anwendung mit KI-Unterstützung und 3D-Visualisierung"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "GermanCodeZero",
+      "repo": "CLeaner"
     }
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.py": [
-      "black"
-    ],
-    "*.{json,css,md}": [
-      "prettier --write"
-    ]
   }
 }

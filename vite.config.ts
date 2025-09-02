@@ -1,103 +1,61 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron'
-import renderer from 'vite-plugin-electron-renderer'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    electron([
-      {
-        // Main process entry point
-        entry: 'electron/main.ts',
-        onstart(options) {
-          if (process.env.VSCODE_DEBUG) {
-            console.log('[startup] Electron App')
-          } else {
-            options.startup()
-          }
-        },
-        vite: {
-          build: {
-            sourcemap: true,
-            minify: false,
-            outDir: 'dist-electron',
-            rollupOptions: {
-              external: ['electron']
-            }
-          }
-        }
-      },
-      {
-        entry: 'electron/preload.ts',
-        onstart(options) {
-          options.reload()
-        },
-        vite: {
-          build: {
-            sourcemap: 'inline',
-            minify: false,
-            outDir: 'dist-electron',
-            rollupOptions: {
-              external: ['electron']
-            }
-          }
-        }
-      }
-    ]),
-    renderer()
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@/components': resolve(__dirname, 'src/components'),
-      '@/core': resolve(__dirname, 'src/core'),
-      '@/services': resolve(__dirname, 'src/services'),
-      '@/utils': resolve(__dirname, 'src/utils'),
-      '@/types': resolve(__dirname, 'src/types'),
-      '@/hooks': resolve(__dirname, 'src/hooks'),
-      '@/styles': resolve(__dirname, 'src/styles')
-    }
+      '@': path.resolve(__dirname, './src'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@pages': path.resolve(__dirname, './src/pages'),
+      '@hooks': path.resolve(__dirname, './src/hooks'),
+      '@utils': path.resolve(__dirname, './src/utils'),
+      '@types': path.resolve(__dirname, './src/types'),
+      '@api': path.resolve(__dirname, './src/api'),
+      '@store': path.resolve(__dirname, './src/store'),
+      '@assets': path.resolve(__dirname, './src/assets'),
+    },
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html')
-      }
-    }
-  },
-  server: {
-    port: 3000,
-    host: true
-  },
-<<<<<<< Current (Your changes)
-  preview: {
-    port: 4173,
-    host: true
-  }
-})
-=======
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './vitest.setup.ts',
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'lcov'],
-      lines: 90,
-      statements: 90,
-      functions: 90,
-      branches: 80,
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge'],
+          'chart-vendor': ['recharts', 'three', '@react-three/fiber', '@react-three/drei'],
+          'utils-vendor': ['axios', 'date-fns', 'zustand'],
+        },
+      },
     },
   },
-<<<<<<< Current (Your changes)
-});
->>>>>>> Incoming (Background Agent changes)
-=======
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      'axios',
+      'framer-motion',
+      'three',
+    ],
+  },
   test: {
     globals: true,
     environment: 'jsdom',
@@ -112,4 +70,3 @@ export default defineConfig({
     },
   },
 });
->>>>>>> Incoming (Background Agent changes)

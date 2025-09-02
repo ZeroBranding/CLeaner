@@ -1,6 +1,24 @@
 # Cleaner Pro – Systemreiniger der nächsten Generation
 
-**Cleaner Pro** ist ein intelligenter, plattformübergreifender Systemreiniger, der mit einer modernen React/Electron-Oberfläche und einem leistungsstarken Python-Kern ausgestattet ist. Die Anwendung findet und entfernt nicht nur überflüssige Dateien, sondern identifiziert auch Treiberprobleme und gibt mithilfe von integrierten Sprachmodellen intelligente Empfehlungen zur Systemoptimierung.
+**Cleaner Pro** ist eine moderne, KI-gestützte System-Reinigungs-Anwendung mit einem leistungsstarken Python-Kern und einer intuitiven 3D-Benutzeroberfläche, die auf Electron und React basiert.
+
+## Features
+
+### 🧹 Intelligente System-Reinigung
+- **Hardware-beschleunigter Scan**: Nutzt CPU, GPU, RAM optimal.
+- **Umfassende Analyse**: Findet temporäre Dateien, Cache, Duplikate und mehr.
+- **KI-gestützte Kategorisierung**: Ein lokales LLM erklärt gefundene Dateien und gibt Empfehlungen.
+- **Sichere Löschung**: Eingebaute Schutzmechanismen verhindern das versehentliche Löschen wichtiger Systemdateien.
+
+### 🎨 Moderne 3D-Benutzeroberfläche
+- **Hologramm-Effekte**: Futuristische Visualisierungen des Scan-Prozesses.
+- **Echtzeit-Statistiken**: Live-Anzeige der Systemgesundheit und des Reinigungsfortschritts.
+- **Responsive Design**: Optimiert für verschiedene Bildschirmgrößen.
+
+### 🤖 KI-Integration
+- **Lokale LLM**: Die KI läuft offline auf Ihrem Gerät, um maximalen Datenschutz zu gewährleisten.
+- **Interaktive Erklärungen**: Verständliche Beschreibungen der Scan-Ergebnisse.
+- **Intelligente Empfehlungen**: Die KI schlägt optimale Reinigungsstrategien vor.
 
 ## Technologie-Stack
 
@@ -8,18 +26,7 @@
 *   **Desktop App:** Electron
 *   **Backend & Core-Logik:** Python
 *   **KI-Integration:** Lokale LLMs (über Ollama und Transformers)
-
-## Haupt-Features
-
-1.  **Hardware-spezifische Datenmüll-Bereinigung:**
-    *   CPU- und GPU-Cache-Dateien
-    *   RAM-Auslagerungs-/Hibernation-Dateien
-    *   Temporäre SSD- und Festplatten-Artefakte (Log- und Cache-Verzeichnisse)
-    *   Mainboard-bezogene Firmware-Logs
-2.  **Treiber-Identifizierung & Update-Empfehlungen**
-3.  **System-Übersicht in Echtzeit:** Temperatur, Auslastung und Lebensdauer-Statistiken
-4.  **Integrierte lokale LLMs** für kontextbezogene Analysen und Benutzerinteraktion
-5.  **Erweiterbare Plugin-Architektur:** Eigene Module können einfach im Verzeichnis `cleaner/hardware` hinzugefügt werden.
+*   **3D-Rendering:** WebGL
 
 ## Installation & Einrichtung
 
@@ -68,23 +75,12 @@ Die folgenden Skripte sind in der `package.json` definiert und können mit `npm 
 | `format`           | Formatiert den gesamten Code mit Prettier.                                    |
 | `electron:dev`     | Startet nur den Electron-Wrapper im Entwicklungsmodus.                        |
 
-## Verwendung der CLI (Python-Kern)
-
-Die Kernfunktionalität kann auch direkt über die Kommandozeile genutzt werden.
-
-```bash
-# Beispiel: Komplette Reinigung mit Standard-Profil
-python main.py clean
-
-# Beispiel: Nur Treiberanalyse durchführen
-python main.py drivers scan
-```
-
 ## Roadmap
 
 *   Automatische Reinigungs-Zeitpläne
 *   Cloud-Synchronisierung von Reinigungsprofilen (optional)
 *   Erweiterte System-Tweaking-Optionen
+*   Freemium-Modell mit optionalem Premium-Abo für werbefreie Nutzung
 
 ## Lizenz
 
